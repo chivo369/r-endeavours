@@ -1,0 +1,156 @@
+---
+title: "assignment_3"
+author: "tom kurian"
+date: "12/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(readxl)
+library(palmerpenguins)
+```
+
+## Theory Hands Ons
+## In this section we will tryout the concepts which we studied during the theory class
+
+```{r}
+data("penguins")
+```
+
+```{r}
+penguins %>% head(3)
+```
+
+```{r}
+folder_path<-"./"
+file_name<-"HockeyLeague.xlsx" # set the file name
+file_path<-paste(folder_path,file_name,sep="") # create the file_path
+```
+
+```{r}
+clean_xlsx <- function(sheet_name, sep_cols) {
+    data <- read_excel(file_path, sheet = sheet_name)
+    df <- data %>%
+            rename(Team=...1) %>%
+            pivot_longer(cols = !Team, names_to = "Year", values_to = "Game_Stats") %>%
+            separate(Game_Stats, sep_cols, sep = " of ", convert = TRUE)
+    return(df)
+}
+```
+
+```{r}
+wins_df <- clean_xlsx("Wins", c("Wins", "Total"))
+losses_df <- clean_xlsx("Losses", c("Losses", "Total"))
+```
+
+```{r}
+head(wins_df, 3)
+head(losses_df, 3)
+```
+
+# Now join the both dataframes into a single dataframe
+```{r}
+hockey_df <- wins_df %>%
+              inner_join(losses_df, by = c('Team','Year', 'Total')) %>%
+              mutate(Draws=Total - Wins - Losses, Wins_rt = round(Wins/Total, 2), Losses_rt = round(Losses/Total, 2), Draws_rt = round(Draws/Total, 2))
+
+hockey_df %>% head(3)
+```
+
+To conclude this task generate a summary data frame which displays, for each team, the median win rate,
+the mean win rate, the median loss rate, the mean loss rate, the median draw rate and the mean draw
+rate. The number of rows in your summary should equal the number of teams. These should be sorted
+in descending order of median win rate. You may want to make use of the following functions: select(),
+group_by(), across(), arrange().
+
+```{r}
+
+hockey_df %>% 
+    group_by(Team) %>%
+    summarise(across(ends_with('_rt'), ~mean(.x, na.rm=TRUE))) %>%
+    head(5)
+
+```
+
+```{r}
+max_cor_var<-function(df,col_name){
+    # function to determine the variable with maximal correlation
+    v_col<-df%>%select(all_of(col_name))
+    # extract variable based on col_name
+    df_num<-df%>%
+    select_if(is.numeric)%>%
+    select(-all_of(col_name))
+    # select all numeric variables excluding col_name
+    correlations<-unlist(map(df_num,
+    function(x){cor(x,v_col,use="complete.obs")}))
+    # compute correlations with all other numeric variables
+    max_abs_cor_var<-names(which(abs(correlations)==max(abs(correlations))))
+    # extract the variable name
+    cor<-as.double(correlations[max_abs_cor_var])
+    # compute the correlation
+    #return(data.frame(var_name=max_abs_cor_var,cor=cor))
+    return(max_abs_cor_var)
+    # return dataframe
+}
+```
+
+```{r}
+
+top_correlates_by_var <- function(df)
+{
+  df_num <- df %>% select_if(is.numeric)
+  feature_vector <- c()
+  corrs_vector <- c()
+  
+  for (i in colnames(df_num)){
+    ans = df_num %>% max_cor_var(i)
+    feature_vector <- append(feature_vector, i)
+    corrs_vector <- append(corrs_vector, ans)
+  }
+  result_df <- data.frame(t(corrs_vector))
+  colnames(result_df) <- feature_vector
+  return(result_df)
+}
+
+penguins %>%
+  filter(species == 'Gentoo') %>%
+  top_correlates_by_var()
+```
+
+```{r}
+penguins %>%
+  group_by(species) %>%
+  nest() %>%
+  mutate(cor_var = map(data, ~top_correlates_by_var(.x))) %>%
+  select(-data) %>%
+  unnest(cols=cor_var)
+
+```
+

@@ -1,0 +1,133 @@
+---
+title: "assign_parta"
+author: "tom kurian"
+date: "13/10/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(purrr)
+```
+
+
+```{r}
+sv <- c(1, 2, 3, 4, 5)
+mean(sv)
+median(sv)
+```
+
+```{r}
+compute_location_est <- function(vec_x, is_mean = TRUE){
+  
+  # compute the location estimator of the given input vector
+  # if is_mean then the mean value is computed, else compute the median
+  if (is_mean){
+    est <- mean(vec_x, na.rm = 1)
+  }
+  else
+  {
+    est <- median(vec_x, na.rm = 1)
+  }
+  
+  # function to impute by mean, if the element is null else element itself
+  impute_est <- function(k)
+  {
+    return(if (is.na(k)) est else k)
+  }
+  return(map_dbl(vec_x, impute_est))
+}
+
+compute_location_est(sv)
+```
+
+```{r}
+sv_c <- c(1, 2, NA, 4, NA)
+compute_location_est(sv_c)
+```
+
+```{r}
+v<-c(1,2,NA,4)
+compute_location_est(v, FALSE)
+```
+
+```{r}
+x <- seq(0, 10, 0.1)
+y <- 5 * x + 1
+
+df_xy <- data.frame(x, y)
+df_xy %>% head(3)
+```
+```{r}
+df_xy %>% mutate(z = map2_dbl(x, y, ~.x+.y)) %>% head(3)
+```
+
+```{r}
+sometimes_missing <- function(index, value){
+  return(if (index %% 5 ==0) NA else value)
+}
+
+sometimes_missing(15,25)
+```
+
+# creating df_xy_missing
+```{r}
+df_xy_missing <- df_xy %>% mutate(y=map2_dbl(row_number(y), y, sometimes_missing))
+df_xy_missing
+```
+
+```{r}
+df_xy_imputed <- df_xy_missing %>%
+                  mutate(y=compute_location_est(y, FALSE))
+
+df_xy_imputed%>%head(5)
+```
+
+```{r}
+df_xy<-df_xy%>%
+          mutate(source="original")
+
+df_xy_missing<-df_xy_missing%>%
+                  mutate(source="corrupted")
+
+df_xy_imputed<-df_xy_imputed%>%
+                  mutate(source="imputed")
+
+df_combined<-rbind(df_xy,df_xy_missing,df_xy_imputed)
+
+df_combined
+```
+
+```{r}
+ggplot(data=df_combined, aes(x, y, color=source)) +
+    geom_point() + facet_wrap(~source) + geom_smooth(method = 'lm')
+```
+
+# The imputed values are not that great looking like a bad estimator
