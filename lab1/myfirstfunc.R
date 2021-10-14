@@ -12,7 +12,7 @@ myFirstRFunc <- function(n){
   # initialize the running sum variable
   x_sum = 0
   
-  for (i in seq(2, n-1, 1)) {
+  for (i in seq(2, n-1)) {
     # check if i is divisible by 2 or 7
     if(i %% 2 == 0 | i %% 7 == 0){
       x_sum = x_sum + i
@@ -20,5 +20,3 @@ myFirstRFunc <- function(n){
   }
   print(x_sum)
 }
-
-myFirstRFunc(14)
